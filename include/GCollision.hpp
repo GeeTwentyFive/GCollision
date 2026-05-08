@@ -59,7 +59,7 @@ RayHitInfo IntersectRayAABB(
                 (ray_origin.z > target.min.z && ray_origin.z < target.max.z)
         );
 
-        if (inside_box) ray_direction = fpmlinalg::Vec3{-ray_direction.x, -ray_direction.y, -ray_direction.z};
+        if (inside_box) ray_direction = -ray_direction;
 
         fpm::fixed_16_16 t_min_x = (target.min.x - ray_origin.x) / ray_direction.x;
         fpm::fixed_16_16 t_max_x = (target.max.x - ray_origin.x) / ray_direction.x;
@@ -81,6 +81,11 @@ RayHitInfo IntersectRayAABB(
         hit_info.distance = (t_min < fpm::fixed_16_16{0}) ? t_max : t_min;
 
         // TODO
+
+        if (inside_box) { ray_direction = -ray_direction;
+                hit_info.distance = -hit_info.distance;
+                hit_info.normal = -hit_info.normal;
+        }
 
         return hit_info;
 }
