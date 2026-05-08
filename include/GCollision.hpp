@@ -63,7 +63,7 @@ RayHitInfo IntersectRayAABB(
                 (ray_origin.z > target.min.z && ray_origin.z < target.max.z)
         );
 
-        if (inside_box) ray_direction = -ray_direction;
+        //if (inside_box) ray_direction = -ray_direction;  // (apparently not needed...?)
 
         fpm::fixed_16_16 t_min_x, t_max_x;
         if (ray_direction.x == fpm::fixed_16_16{0}) {
@@ -110,7 +110,7 @@ RayHitInfo IntersectRayAABB(
         else if (t_min_y == t_min || t_max_y == t_min) hit_info.normal.y = (ray_direction.y > fpm::fixed_16_16{0}) ? fpm::fixed_16_16{-1} : fpm::fixed_16_16{1};
         else hit_info.normal.z = (ray_direction.z > fpm::fixed_16_16{0}) ? fpm::fixed_16_16{-1} : fpm::fixed_16_16{1};
 
-        if (inside_box) { ray_direction = -ray_direction;
+        if (inside_box) { //ray_direction = -ray_direction;
                 hit_info.distance = -hit_info.distance;
                 hit_info.normal = -hit_info.normal;
         }
