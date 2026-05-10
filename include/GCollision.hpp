@@ -68,30 +68,20 @@ struct AABB {
         }
 };
 
-struct RayHitInfo {
-        bool hit = false;
+struct RayHitExtraInfo {
         fpm::fixed_16_16 distance = fpm::fixed_16_16{0};
         fpmlinalg::Vec3 point = fpmlinalg::Vec3{0, 0, 0};
         fpmlinalg::Vec3 normal = fpmlinalg::Vec3{0, 0, 0};
 };
-RayHitInfo IntersectRayAABB(
+bool IntersectRayAABB(  // returns `true` if ray intersects AABB
         const fpmlinalg::Vec3& ray_origin,
         const fpmlinalg::Vec3& ray_direction,
-        const AABB& target
+        const AABB& target,
+        gcollision::RayHitExtraInfo* OUT_extra_hit_info = nullptr  // optional extra hit info
 ) {
-        RayHitInfo hit_info{};
-
-        if (ray_direction.x == fpm::fixed_16_16{0} && (ray_origin.x < target.min.x || ray_origin.x > target.max.x)) { hit_info.hit = false; return hit_info; }
-        if (ray_direction.y == fpm::fixed_16_16{0} && (ray_origin.y < target.min.y || ray_origin.y > target.max.y)) { hit_info.hit = false; return hit_info; }
-        if (ray_direction.z == fpm::fixed_16_16{0} && (ray_origin.z < target.min.z || ray_origin.z > target.max.z)) { hit_info.hit = false; return hit_info; }
-
-        bool inside_box = (
-                (ray_origin.x > target.min.x && ray_origin.x < target.max.x) &&
-                (ray_origin.y > target.min.y && ray_origin.y < target.max.y) &&
-                (ray_origin.z > target.min.z && ray_origin.z < target.max.z)
-        );
-
-        //if (inside_box) ray_direction = -ray_direction;  // (apparently not needed...?)
+        if (ray_direction.x == fpm::fixed_16_16{0} && (ray_origin.x < target.min.x || ray_origin.x > target.max.x)) { return false; }
+        if (ray_direction.y == fpm::fixed_16_16{0} && (ray_origin.y < target.min.y || ray_origin.y > target.max.y)) { return false; }
+        if (ray_direction.z == fpm::fixed_16_16{0} && (ray_origin.z < target.min.z || ray_origin.z > target.max.z)) { return false; }
 
         fpm::fixed_16_16 t_min_x, t_max_x;
         if (ray_direction.x == fpm::fixed_16_16{0}) {
@@ -126,21 +116,26 @@ RayHitInfo IntersectRayAABB(
         if (
                 (t_max < fpm::fixed_16_16{0}) ||  // AABB behind ray
                 (t_min > t_max)  // No hit
-        ) { hit_info.hit = false; return hit_info; }
+        ) { return false; }
 
-        hit_info.hit = true;
-        hit_info.distance = (t_min < fpm::fixed_16_16{0}) ? t_max : t_min;
-        hit_info.point = ray_origin + (ray_direction * hit_info.distance);
-        hit_info.normal = fpmlinalg::Vec3{0, 0, 0};
-        if (t_min_x == t_min || t_max_x == t_min) hit_info.normal.x = (ray_direction.x > fpm::fixed_16_16{0}) ? fpm::fixed_16_16{-1} : fpm::fixed_16_16{1};
-        else if (t_min_y == t_min || t_max_y == t_min) hit_info.normal.y = (ray_direction.y > fpm::fixed_16_16{0}) ? fpm::fixed_16_16{-1} : fpm::fixed_16_16{1};
-        else hit_info.normal.z = (ray_direction.z > fpm::fixed_16_16{0}) ? fpm::fixed_16_16{-1} : fpm::fixed_16_16{1};
+        if (OUT_extra_hit_info == nullptr) return true;
 
-        if (inside_box) { //ray_direction = -ray_direction;
-                hit_info.distance = -hit_info.distance;
-                hit_info.normal = -hit_info.normal;
+        RayHitExtraInfo extra_hit_info{};
+        extra_hit_info.distance = (t_min < fpm::fixed_16_16{0}) ? t_max : t_min;
+        extra_hit_info.normal = fpmlinalg::Vec3{0, 0, 0};
+        if (t_min_x == t_min || t_max_x == t_min) extra_hit_info.normal.x = (ray_direction.x > fpm::fixed_16_16{0}) ? fpm::fixed_16_16{-1} : fpm::fixed_16_16{1};
+        else if (t_min_y == t_min || t_max_y == t_min) extra_hit_info.normal.y = (ray_direction.y > fpm::fixed_16_16{0}) ? fpm::fixed_16_16{-1} : fpm::fixed_16_16{1};
+        else extra_hit_info.normal.z = (ray_direction.z > fpm::fixed_16_16{0}) ? fpm::fixed_16_16{-1} : fpm::fixed_16_16{1};
+        if (  // if ray origin is inside box: negate distance and normal
+                (ray_origin.x > target.min.x && ray_origin.x < target.max.x) &&
+                (ray_origin.y > target.min.y && ray_origin.y < target.max.y) &&
+                (ray_origin.z > target.min.z && ray_origin.z < target.max.z)
+        ) {
+                extra_hit_info.distance = -extra_hit_info.distance;
+                extra_hit_info.normal = -extra_hit_info.normal;
         }
-
-        return hit_info;
+        extra_hit_info.point = ray_origin + (ray_direction * extra_hit_info.distance);
+        *OUT_extra_hit_info = extra_hit_info;
+        return true;
 }
 }
