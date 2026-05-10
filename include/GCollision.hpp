@@ -29,6 +29,8 @@ DEALINGS IN THE SOFTWARE.
 
 #include <fpmlinalg.hpp>
 
+#include <limits>
+
 namespace gcollision {
 struct AABB {
         fpmlinalg::Vec3 min;
@@ -85,8 +87,8 @@ bool IntersectRayAABB(  // returns `true` if ray intersects AABB
 
         fpm::fixed_16_16 t_min_x, t_max_x;
         if (ray_direction.x == fpm::fixed_16_16{0}) {
-                t_min_x = fpm::fixed_16_16{-32768};
-                t_max_x = fpm::fixed_16_16{32767};
+                t_min_x = std::numeric_limits<fpm::fixed_16_16>::lowest();
+                t_max_x = std::numeric_limits<fpm::fixed_16_16>::max();
         } else {
                 t_min_x = (target.min.x - ray_origin.x) / ray_direction.x;
                 t_max_x = (target.max.x - ray_origin.x) / ray_direction.x;
@@ -94,8 +96,8 @@ bool IntersectRayAABB(  // returns `true` if ray intersects AABB
 
         fpm::fixed_16_16 t_min_y, t_max_y;
         if (ray_direction.y == fpm::fixed_16_16{0}) {
-                t_min_y = fpm::fixed_16_16{-32768};
-                t_max_y = fpm::fixed_16_16{32767};
+                t_min_y = std::numeric_limits<fpm::fixed_16_16>::lowest();
+                t_max_y = std::numeric_limits<fpm::fixed_16_16>::max();
         } else {
                 t_min_y = (target.min.y - ray_origin.y) / ray_direction.y;
                 t_max_y = (target.max.y - ray_origin.y) / ray_direction.y;
@@ -103,8 +105,8 @@ bool IntersectRayAABB(  // returns `true` if ray intersects AABB
 
         fpm::fixed_16_16 t_min_z, t_max_z;
         if (ray_direction.z == fpm::fixed_16_16{0}) {
-                t_min_z = fpm::fixed_16_16{-32768};
-                t_max_z = fpm::fixed_16_16{32767};
+                t_min_z = std::numeric_limits<fpm::fixed_16_16>::lowest();
+                t_max_z = std::numeric_limits<fpm::fixed_16_16>::max();
         } else {
                 t_min_z = (target.min.z - ray_origin.z) / ray_direction.z;
                 t_max_z = (target.max.z - ray_origin.z) / ray_direction.z;
@@ -121,20 +123,18 @@ bool IntersectRayAABB(  // returns `true` if ray intersects AABB
         if (OUT_extra_hit_info == nullptr) return true;
 
         RayHitExtraInfo extra_hit_info{};
-        extra_hit_info.distance = (t_min < fpm::fixed_16_16{0}) ? t_max : t_min;
+        bool inside_box = (
+                (ray_origin.x > target.min.x && ray_origin.x < target.max.x) &&
+                (ray_origin.y > target.min.y && ray_origin.y < target.max.y) &&
+                (ray_origin.z > target.min.z && ray_origin.z < target.max.z)
+        );
+        extra_hit_info.distance = inside_box ? t_max : t_min;
+        extra_hit_info.point = ray_origin + (ray_direction * extra_hit_info.distance);
         extra_hit_info.normal = fpmlinalg::Vec3{0, 0, 0};
         if (t_min_x == t_min || t_max_x == t_min) extra_hit_info.normal.x = (ray_direction.x > fpm::fixed_16_16{0}) ? fpm::fixed_16_16{-1} : fpm::fixed_16_16{1};
         else if (t_min_y == t_min || t_max_y == t_min) extra_hit_info.normal.y = (ray_direction.y > fpm::fixed_16_16{0}) ? fpm::fixed_16_16{-1} : fpm::fixed_16_16{1};
         else extra_hit_info.normal.z = (ray_direction.z > fpm::fixed_16_16{0}) ? fpm::fixed_16_16{-1} : fpm::fixed_16_16{1};
-        if (  // if ray origin is inside box: negate distance and normal
-                (ray_origin.x > target.min.x && ray_origin.x < target.max.x) &&
-                (ray_origin.y > target.min.y && ray_origin.y < target.max.y) &&
-                (ray_origin.z > target.min.z && ray_origin.z < target.max.z)
-        ) {
-                extra_hit_info.distance = -extra_hit_info.distance;
-                extra_hit_info.normal = -extra_hit_info.normal;
-        }
-        extra_hit_info.point = ray_origin + (ray_direction * extra_hit_info.distance);
+        if (inside_box) extra_hit_info.normal = -extra_hit_info.normal;
         *OUT_extra_hit_info = extra_hit_info;
         return true;
 }
